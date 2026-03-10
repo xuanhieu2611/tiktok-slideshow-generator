@@ -13,6 +13,7 @@ interface SlideshowState {
   selectSlide: (id: string | null) => void
   updateSlideStyle: (id: string, style: Partial<TextStyle>) => void
   updateSlideText: (id: string, text: { headline?: string; subtitle?: string }) => void
+  bulkUpdateSlideText: (updates: Array<{ id: string; headline: string; subtitle: string }>) => void
   updateGlobalStyle: (style: Partial<TextStyle>) => void
   applyGlobalToAll: () => void
   addCtaSlide: () => void
@@ -88,6 +89,16 @@ export const useSlideshowStore = create<SlideshowState>((set, get) => ({
       slides: state.slides.map((s) =>
         s.id === id ? { ...s, ...text } : s
       ),
+    }))
+  },
+
+  bulkUpdateSlideText: (updates) => {
+    const map = new Map(updates.map((u) => [u.id, u]))
+    set((state) => ({
+      slides: state.slides.map((s) => {
+        const u = map.get(s.id)
+        return u ? { ...s, headline: u.headline, subtitle: u.subtitle } : s
+      }),
     }))
   },
 
