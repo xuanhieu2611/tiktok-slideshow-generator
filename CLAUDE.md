@@ -51,20 +51,25 @@ Bottom bar: `GlobalSettingsBar.tsx` applies style defaults to all slides.
 
 **Backend API routes** (`src/app/api/`):
 - `auth/tiktok` — redirects to TikTok OAuth
-- `auth/tiktok/callback` — exchanges code for token, stores in memory
+- `auth/tiktok/callback` — exchanges code for token, stores session in Supabase DB
 - `auth/status` — returns `{ connected, username }`
-- `auth/disconnect` — clears session
-- `upload/slides` — receives PNG blobs, converts to JPEG via `sharp`, calls TikTok Content Posting API (`PULL_FROM_URL`)
+- `auth/disconnect` — clears session from Supabase DB
+- `upload/slides` — receives PNG blobs, converts to JPEG via `sharp`, uploads to Supabase Storage, calls TikTok Content Posting API (`PULL_FROM_URL`)
 - `upload/status/[publishId]` — polls TikTok publish status
-- `uploads/[filename]` — serves temp JPEG files for TikTok to pull
+- `cleanup-slides` — deletes expired slide uploads from Supabase Storage (called by Vercel Cron every 5 min)
 
-**Libs**: `src/lib/tiktok-session.ts` (in-memory singleton), `src/lib/tiktok-api.ts` (API helpers)
+**Libs**: `src/lib/supabase.ts` (lazy Supabase client singleton using service role key), `src/lib/tiktok-session.ts` (async Supabase DB-backed session), `src/lib/tiktok-api.ts` (API helpers)
 
 **Frontend**: `src/hooks/useTikTokAuth.ts`, `src/components/tiktok/TikTokConnectButton.tsx`, `src/components/tiktok/TikTokUploadModal.tsx`, `src/components/tiktok/TikTokAuthHandler.tsx`
 
-**Temp images**: stored in `uploads/` at project root (gitignored), cleaned up 5 min after upload.
+**Temp images**: uploaded to Supabase Storage bucket `tiktok-slides` (public). Tracked in `slide_uploads` DB table with `delete_after` timestamp. Cron route `/api/cleanup-slides` removes expired files.
 
-**Env vars** (`.env.local`): `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI` (→ `/api/auth/tiktok/callback`), `PUBLIC_BASE_URL` (ngrok URL for local dev so TikTok can pull images).
+**Env vars** (`.env.local`): `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI` (→ `/api/auth/tiktok/callback`), `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+
+**Supabase setup** (manual in dashboard):
+- Storage bucket `tiktok-slides` — public
+- Table `tiktok_sessions` (id TEXT PK default 'singleton', access_token, refresh_token, expires_at BIGINT, refresh_expires_at BIGINT, open_id, username, updated_at) with RLS enabled (service role bypasses)
+- Table `slide_uploads` (filename TEXT PK, delete_after TIMESTAMPTZ)
 
 ### Key Types (`src/types/index.ts`)
 
@@ -80,8 +85,11 @@ After implementing any significant change (new feature, major bug fix, workflow 
 
 ## Changelog
 
+### 2026-03-09 (session 3)
+- **Supabase integration**: Replaced in-memory session storage with Supabase PostgreSQL (`tiktok_sessions` table) and replaced local `uploads/` filesystem + ngrok with Supabase Storage (`tiktok-slides` bucket). All session functions are now async. Added `src/lib/supabase.ts` (lazy singleton), `src/app/api/cleanup-slides/route.ts` (cron cleanup), and `vercel.json` (cron schedule). Deleted `src/app/api/uploads/[filename]/route.ts`. Removed `PUBLIC_BASE_URL` env var dependency. New deps: `@supabase/supabase-js`.
+
 ### 2026-03-09 (session 2)
-- **TikTok Upload feature**: Added full TikTok OAuth + photo post upload pipeline. See TikTok Integration section above. New deps: `sharp`, `uuid`. Requires `.env.local` and ngrok for local dev.
+- **TikTok Upload feature**: Added full TikTok OAuth + photo post upload pipeline. See TikTok Integration section above. New deps: `sharp`, `uuid`. Requires `.env.local`.
 
 ### 2026-03-09
 - **Aspect ratio changed to 4:5**: `CANVAS_HEIGHT` changed from 1920 → 1350 (`src/constants/defaults.ts`). All canvas rendering and exports now produce 1080×1350 images. Copy updated in `UploadLanding.tsx` and `layout.tsx`.

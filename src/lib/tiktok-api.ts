@@ -1,12 +1,12 @@
-import { getSession, setSession, isAccessTokenExpired } from './tiktok-session'
+import { getSession, setSession } from './tiktok-session'
 
 const TIKTOK_API_BASE = 'https://open.tiktokapis.com/v2'
 
 export async function getValidAccessToken(): Promise<string> {
-  const session = getSession()
+  const session = await getSession()
   if (!session) throw new Error('Not authenticated with TikTok')
 
-  if (isAccessTokenExpired()) {
+  if (Date.now() >= session.expiresAt) {
     const params = new URLSearchParams({
       client_key: process.env.TIKTOK_CLIENT_KEY!,
       client_secret: process.env.TIKTOK_CLIENT_SECRET!,
@@ -23,7 +23,7 @@ export async function getValidAccessToken(): Promise<string> {
     const data = await res.json()
     if (data.error) throw new Error(data.error_description || data.error)
 
-    setSession({
+    await setSession({
       ...session,
       accessToken: data.access_token,
       refreshToken: data.refresh_token || session.refreshToken,

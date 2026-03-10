@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
     // username is optional
   }
 
-  setSession({
+  await setSession({
     accessToken: tokenData.access_token,
     refreshToken: tokenData.refresh_token,
     expiresAt: Date.now() + tokenData.expires_in * 1000,

@@ -2,6 +2,6 @@ import { NextResponse } from 'next/server'
 import { clearSession } from '@/lib/tiktok-session'
 
 export async function POST() {
-  clearSession()
+  await clearSession()
   return NextResponse.json({ ok: true })
 }

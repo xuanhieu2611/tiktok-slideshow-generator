@@ -1,39 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir, unlink } from 'fs/promises'
-import { existsSync } from 'fs'
-import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
 import sharp from 'sharp'
 import { getSession } from '@/lib/tiktok-session'
 import { getValidAccessToken, initPhotoPost } from '@/lib/tiktok-api'
-
-const UPLOADS_DIR = path.join(process.cwd(), 'uploads')
-
-async function ensureUploadsDir() {
-  if (!existsSync(UPLOADS_DIR)) {
-    await mkdir(UPLOADS_DIR, { recursive: true })
-  }
-}
-
-function scheduleCleanup(filePaths: string[], delayMs = 5 * 60 * 1000) {
-  setTimeout(async () => {
-    for (const fp of filePaths) {
-      try {
-        await unlink(fp)
-      } catch {
-        // ignore if already deleted
-      }
-    }
-  }, delayMs)
-}
+import { getSupabase } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
-  const session = getSession()
+  const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: 'Not connected to TikTok' }, { status: 401 })
   }
-
-  await ensureUploadsDir()
 
   const formData = await req.formData()
   const title = (formData.get('title') as string) || ''
@@ -47,9 +23,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Maximum 35 slides allowed' }, { status: 400 })
   }
 
-  const savedFiles: string[] = []
   const publicUrls: string[] = []
-  const publicBase = process.env.PUBLIC_BASE_URL?.replace(/\/$/, '') || 'http://localhost:3000'
+  const uploadedFilenames: string[] = []
 
   try {
     for (const [, value] of slideEntries) {
@@ -58,25 +33,35 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(arrayBuffer)
 
       const filename = `${uuidv4()}.jpg`
-      const filePath = path.join(UPLOADS_DIR, filename)
+      const jpegBuffer = await sharp(buffer).jpeg({ quality: 90 }).toBuffer()
 
-      // Convert PNG → JPEG
-      await sharp(buffer).jpeg({ quality: 90 }).toFile(filePath)
+      const sb = getSupabase()
+      const { error: uploadError } = await sb.storage
+        .from('tiktok-slides')
+        .upload(filename, jpegBuffer, { contentType: 'image/jpeg' })
 
-      savedFiles.push(filePath)
-      publicUrls.push(`${publicBase}/api/uploads/${filename}`)
+      if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`)
+
+      const { data: urlData } = sb.storage.from('tiktok-slides').getPublicUrl(filename)
+      publicUrls.push(urlData.publicUrl)
+      uploadedFilenames.push(filename)
     }
+
+    // Track for cleanup
+    const deleteAfter = new Date(Date.now() + 10 * 60 * 1000).toISOString()
+    await getSupabase().from('slide_uploads').insert(
+      uploadedFilenames.map(filename => ({ filename, delete_after: deleteAfter }))
+    )
 
     const accessToken = await getValidAccessToken()
     const publishId = await initPhotoPost(accessToken, publicUrls, title, description)
 
-    // Clean up after 5 minutes (TikTok needs time to pull)
-    scheduleCleanup(savedFiles)
-
     return NextResponse.json({ publishId })
   } catch (err) {
-    // Clean up on error
-    scheduleCleanup(savedFiles, 0)
+    // Best-effort cleanup on error
+    if (uploadedFilenames.length > 0) {
+      await getSupabase().storage.from('tiktok-slides').remove(uploadedFilenames)
+    }
 
     const message = err instanceof Error ? err.message : 'Upload failed'
     return NextResponse.json({ error: message }, { status: 500 })
