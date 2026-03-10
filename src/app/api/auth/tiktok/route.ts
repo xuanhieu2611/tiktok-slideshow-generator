@@ -1,7 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const clientKey = process.env.TIKTOK_CLIENT_KEY
   const redirectUri = process.env.TIKTOK_REDIRECT_URI
 
@@ -19,5 +29,20 @@ export async function GET() {
   })
 
   const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`
-  return NextResponse.redirect(authUrl)
+
+  const response = NextResponse.redirect(authUrl)
+  response.cookies.set('tiktok_oauth_state', state, {
+    httpOnly: true,
+    maxAge: 600,
+    path: '/',
+    sameSite: 'lax',
+  })
+  response.cookies.set('tiktok_oauth_user_id', user.id, {
+    httpOnly: true,
+    maxAge: 600,
+    path: '/',
+    sameSite: 'lax',
+  })
+
+  return response
 }

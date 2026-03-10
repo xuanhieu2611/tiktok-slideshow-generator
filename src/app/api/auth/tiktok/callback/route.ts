@@ -5,9 +5,26 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const code = searchParams.get('code')
   const error = searchParams.get('error')
+  const stateParam = searchParams.get('state')
+
+  // Verify state cookie
+  const stateCookie = req.cookies.get('tiktok_oauth_state')?.value
+  if (!stateCookie || stateCookie !== stateParam) {
+    return NextResponse.redirect(new URL('/editor?error=state_mismatch', req.url))
+  }
+
+  const userId = req.cookies.get('tiktok_oauth_user_id')?.value
+  if (!userId) {
+    return NextResponse.redirect(new URL('/editor?error=missing_user', req.url))
+  }
 
   if (error || !code) {
-    return NextResponse.redirect(new URL(`/?tiktok=error&reason=${error || 'no_code'}`, req.url))
+    const response = NextResponse.redirect(
+      new URL(`/?tiktok=error&reason=${error || 'no_code'}`, req.url)
+    )
+    response.cookies.delete('tiktok_oauth_state')
+    response.cookies.delete('tiktok_oauth_user_id')
+    return response
   }
 
   const clientKey = process.env.TIKTOK_CLIENT_KEY!
@@ -32,9 +49,15 @@ export async function GET(req: NextRequest) {
   const tokenData = await tokenRes.json()
 
   if (tokenData.error) {
-    return NextResponse.redirect(
-      new URL(`/editor?tiktok=error&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`, req.url)
+    const response = NextResponse.redirect(
+      new URL(
+        `/editor?tiktok=error&reason=${encodeURIComponent(tokenData.error_description || tokenData.error)}`,
+        req.url
+      )
     )
+    response.cookies.delete('tiktok_oauth_state')
+    response.cookies.delete('tiktok_oauth_user_id')
+    return response
   }
 
   // Fetch user info
@@ -52,7 +75,7 @@ export async function GET(req: NextRequest) {
     // username is optional
   }
 
-  await setSession({
+  await setSession(userId, {
     accessToken: tokenData.access_token,
     refreshToken: tokenData.refresh_token,
     expiresAt: Date.now() + tokenData.expires_in * 1000,
@@ -61,5 +84,8 @@ export async function GET(req: NextRequest) {
     username,
   })
 
-  return NextResponse.redirect(new URL('/editor?tiktok=connected', req.url))
+  const response = NextResponse.redirect(new URL('/editor?tiktok=connected', req.url))
+  response.cookies.delete('tiktok_oauth_state')
+  response.cookies.delete('tiktok_oauth_user_id')
+  return response
 }

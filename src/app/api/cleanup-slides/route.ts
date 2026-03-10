@@ -1,10 +1,15 @@
-import { NextResponse } from 'next/server'
-import { getSupabase } from '@/lib/supabase'
+import { NextRequest, NextResponse } from 'next/server'
+import { getAdminClient } from '@/lib/supabase'
 
 // Called by Vercel Cron every 5 minutes
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization')
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const now = new Date().toISOString()
-  const sb = getSupabase()
+  const sb = getAdminClient()
 
   const { data: expired } = await sb
     .from('slide_uploads')

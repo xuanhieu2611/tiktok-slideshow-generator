@@ -1,4 +1,4 @@
-import { getSupabase } from './supabase'
+import { getAdminClient } from './supabase'
 
 export interface TikTokSession {
   accessToken: string
@@ -9,11 +9,11 @@ export interface TikTokSession {
   username: string
 }
 
-export async function getSession(): Promise<TikTokSession | null> {
-  const { data, error } = await getSupabase()
+export async function getSession(userId: string): Promise<TikTokSession | null> {
+  const { data, error } = await getAdminClient()
     .from('tiktok_sessions')
     .select('*')
-    .eq('id', 'singleton')
+    .eq('user_id', userId)
     .single()
 
   if (error || !data) return null
@@ -28,9 +28,9 @@ export async function getSession(): Promise<TikTokSession | null> {
   }
 }
 
-export async function setSession(s: TikTokSession): Promise<void> {
-  await getSupabase().from('tiktok_sessions').upsert({
-    id: 'singleton',
+export async function setSession(userId: string, s: TikTokSession): Promise<void> {
+  await getAdminClient().from('tiktok_sessions').upsert({
+    user_id: userId,
     access_token: s.accessToken,
     refresh_token: s.refreshToken,
     expires_at: s.expiresAt,
@@ -41,12 +41,12 @@ export async function setSession(s: TikTokSession): Promise<void> {
   })
 }
 
-export async function clearSession(): Promise<void> {
-  await getSupabase().from('tiktok_sessions').delete().eq('id', 'singleton')
+export async function clearSession(userId: string): Promise<void> {
+  await getAdminClient().from('tiktok_sessions').delete().eq('user_id', userId)
 }
 
-export async function isAccessTokenExpired(): Promise<boolean> {
-  const session = await getSession()
+export async function isAccessTokenExpired(userId: string): Promise<boolean> {
+  const session = await getSession(userId)
   if (!session) return true
   return Date.now() >= session.expiresAt
 }

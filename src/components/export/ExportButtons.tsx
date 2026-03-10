@@ -22,7 +22,7 @@ export default function ExportButtons() {
     <button
       onClick={handleExportAll}
       disabled={exporting || slides.length === 0}
-      className="rounded bg-green-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-green-600 disabled:opacity-50"
+      className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
     >
       {exporting ? 'Exporting...' : `Export All (${slides.length})`}
     </button>

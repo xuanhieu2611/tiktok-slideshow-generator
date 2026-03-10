@@ -58,18 +58,25 @@ Bottom bar: `GlobalSettingsBar.tsx` applies style defaults to all slides.
 - `upload/status/[publishId]` — polls TikTok publish status
 - `cleanup-slides` — deletes expired slide uploads from Supabase Storage (called by Vercel Cron every 5 min)
 
-**Libs**: `src/lib/supabase.ts` (lazy Supabase client singleton using service role key), `src/lib/tiktok-session.ts` (async Supabase DB-backed session), `src/lib/tiktok-api.ts` (API helpers)
+**Libs**:
+- `src/lib/supabase.ts` — `getAdminClient()` (service role singleton for DB ops), `createBrowserSupabaseClient()` (anon key browser singleton via `@supabase/ssr`)
+- `src/lib/supabase-server.ts` — `createServerSupabaseClient()` (per-request SSR client using anon key + `next/headers` cookies; server-only)
+- `src/lib/tiktok-session.ts` — async Supabase DB-backed session, all functions now accept `userId: string`
+- `src/lib/tiktok-api.ts` — API helpers; `getValidAccessToken(userId)` now user-scoped
 
-**Frontend**: `src/hooks/useTikTokAuth.ts`, `src/components/tiktok/TikTokConnectButton.tsx`, `src/components/tiktok/TikTokUploadModal.tsx`, `src/components/tiktok/TikTokAuthHandler.tsx`
+**Frontend**: `src/hooks/useTikTokAuth.ts`, `src/hooks/useUser.ts` (Supabase auth state + logout), `src/components/tiktok/TikTokConnectButton.tsx`, `src/components/tiktok/TikTokUploadModal.tsx`, `src/components/tiktok/TikTokAuthHandler.tsx`
 
 **Temp images**: uploaded to Supabase Storage bucket `tiktok-slides` (public). Tracked in `slide_uploads` DB table with `delete_after` timestamp. Cron route `/api/cleanup-slides` removes expired files.
 
-**Env vars** (`.env.local`): `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI` (→ `/api/auth/tiktok/callback`), `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`.
+**Auth flow**: Supabase Auth (magic link). Login page at `/login`. Auth callback at `/auth/callback` (exchanges OTP code for session). All protected routes are guarded by `src/proxy.ts` (Next.js 16 proxy, formerly middleware) using `supabase.auth.getUser()`.
+
+**Env vars** (`.env.local`): `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI` (→ `/api/auth/tiktok/callback`), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`.
 
 **Supabase setup** (manual in dashboard):
 - Storage bucket `tiktok-slides` — public
-- Table `tiktok_sessions` (id TEXT PK default 'singleton', access_token, refresh_token, expires_at BIGINT, refresh_expires_at BIGINT, open_id, username, updated_at) with RLS enabled (service role bypasses)
-- Table `slide_uploads` (filename TEXT PK, delete_after TIMESTAMPTZ)
+- Table `tiktok_sessions` (user_id UUID PK (FK → auth.users), access_token, refresh_token, expires_at BIGINT, refresh_expires_at BIGINT, open_id, username, updated_at) with RLS enabled (service role bypasses)
+- Table `slide_uploads` (filename TEXT PK, delete_after TIMESTAMPTZ, user_id UUID)
+- Supabase Auth enabled (magic link / OTP)
 
 ### Key Types (`src/types/index.ts`)
 
@@ -84,6 +91,9 @@ Bottom bar: `GlobalSettingsBar.tsx` applies style defaults to all slides.
 After implementing any significant change (new feature, major bug fix, workflow change), update this file to reflect the new state of the app. Keep architecture descriptions, dimensions, and feature lists accurate. This prevents future sessions from repeating fixed bugs or misunderstanding the current design.
 
 ## Changelog
+
+### 2026-03-10 (session 4)
+- **Multi-user auth migration**: Added Supabase Auth (magic link). New `src/proxy.ts` (Next.js 16 proxy replacing deprecated middleware) protects `/editor` and `/api/*` routes. New `src/app/login/page.tsx` (magic link form), `src/app/auth/callback/route.ts` (OTP code exchange), `src/hooks/useUser.ts`. Split `supabase.ts` into `supabase.ts` (browser-safe: `getAdminClient`, `createBrowserSupabaseClient`) and `supabase-server.ts` (server-only: `createServerSupabaseClient` using `next/headers`). All `tiktok-session.ts` functions now accept `userId: string`; `tiktok_sessions` table PK changed from `id='singleton'` to `user_id UUID`. All API routes get user via `createServerSupabaseClient().auth.getUser()` and pass `user.id` to session functions. TikTok OAuth stores `tiktok_oauth_state` + `tiktok_oauth_user_id` in httpOnly cookies. Cleanup cron protected by `CRON_SECRET` bearer token. Editor header shows user email + sign out button. New dep: `@supabase/ssr`.
 
 ### 2026-03-09 (session 3)
 - **Supabase integration**: Replaced in-memory session storage with Supabase PostgreSQL (`tiktok_sessions` table) and replaced local `uploads/` filesystem + ngrok with Supabase Storage (`tiktok-slides` bucket). All session functions are now async. Added `src/lib/supabase.ts` (lazy singleton), `src/app/api/cleanup-slides/route.ts` (cron cleanup), and `vercel.json` (cron schedule). Deleted `src/app/api/uploads/[filename]/route.ts`. Removed `PUBLIC_BASE_URL` env var dependency. New deps: `@supabase/supabase-js`.

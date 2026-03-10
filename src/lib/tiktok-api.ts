@@ -2,8 +2,8 @@ import { getSession, setSession } from './tiktok-session'
 
 const TIKTOK_API_BASE = 'https://open.tiktokapis.com/v2'
 
-export async function getValidAccessToken(): Promise<string> {
-  const session = await getSession()
+export async function getValidAccessToken(userId: string): Promise<string> {
+  const session = await getSession(userId)
   if (!session) throw new Error('Not authenticated with TikTok')
 
   if (Date.now() >= session.expiresAt) {
@@ -23,7 +23,7 @@ export async function getValidAccessToken(): Promise<string> {
     const data = await res.json()
     if (data.error) throw new Error(data.error_description || data.error)
 
-    await setSession({
+    await setSession(userId, {
       ...session,
       accessToken: data.access_token,
       refreshToken: data.refresh_token || session.refreshToken,

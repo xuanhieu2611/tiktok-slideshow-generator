@@ -1,12 +1,12 @@
 'use client'
 
+import { useState, useRef } from 'react'
 import { useSlideshowStore } from '@/store/useSlideshowStore'
 import { TextStyle, FontFamily } from '@/types'
 import { FONT_LIST } from '@/constants/defaults'
 import ColorPicker from '@/components/ui/ColorPicker'
 import Slider from '@/components/ui/Slider'
 import Select from '@/components/ui/Select'
-import { useRef } from 'react'
 import { exportSingleSlide } from '@/lib/export'
 
 export default function EditPanel() {
@@ -20,10 +20,12 @@ export default function EditPanel() {
   const updateSlideText = useSlideshowStore((s) => s.updateSlideText)
   const updateCtaSlide = useSlideshowStore((s) => s.updateCtaSlide)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   if (!slide) {
     return (
-      <div className="flex h-full items-center justify-center p-4 text-sm text-gray-500">
+      <div className="flex h-full items-center justify-center p-4 text-sm text-slate-600">
         Select a slide to edit
       </div>
     )
@@ -33,31 +35,47 @@ export default function EditPanel() {
     updateSlideStyle(slide.id, updates)
   }
 
+  const handleExport = async () => {
+    setExporting(true)
+    setExportError(null)
+    try {
+      await exportSingleSlide(slide, slideIndex)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Export failed')
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  const sectionClass = 'space-y-2 border-b border-white/[0.05] pb-4 mb-4'
+  const headingClass = 'text-[10px] font-semibold uppercase tracking-wider text-slate-500'
+  const inputClass = 'w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500/60'
+
   return (
-    <div className="h-full overflow-y-auto bg-gray-900 p-4">
-      <div className="space-y-5">
+    <div className="h-full overflow-y-auto bg-slate-900 p-4">
+      <div className="space-y-0">
         {/* Text Inputs */}
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Text</h3>
+        <section className={sectionClass}>
+          <h3 className={headingClass}>Text</h3>
           <input
             type="text"
             placeholder="Headline"
             value={slide.headline}
             onChange={(e) => updateSlideText(slide.id, { headline: e.target.value })}
-            className="w-full rounded border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500"
+            className={inputClass}
           />
           <input
             type="text"
             placeholder="Subtitle"
             value={slide.subtitle}
             onChange={(e) => updateSlideText(slide.id, { subtitle: e.target.value })}
-            className="w-full rounded border border-gray-600 bg-gray-800 px-3 py-2 text-sm text-white placeholder:text-gray-500"
+            className={inputClass}
           />
         </section>
 
         {/* Font Controls */}
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Font</h3>
+        <section className={sectionClass}>
+          <h3 className={headingClass}>Font</h3>
           <Select
             label="Family"
             value={slide.style.fontFamily}
@@ -104,8 +122,8 @@ export default function EditPanel() {
         </section>
 
         {/* Position */}
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Position</h3>
+        <section className={sectionClass}>
+          <h3 className={headingClass}>Position</h3>
           <Select
             label="Vertical Position"
             value={slide.style.textPosition}
@@ -129,14 +147,14 @@ export default function EditPanel() {
         </section>
 
         {/* Overlay */}
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Overlay</h3>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
+        <section className={sectionClass}>
+          <h3 className={headingClass}>Overlay</h3>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
               checked={slide.style.overlayEnabled}
               onChange={(e) => updateStyle({ overlayEnabled: e.target.checked })}
-              className="accent-blue-500"
+              className="accent-violet-500"
             />
             Dark Overlay
           </label>
@@ -152,14 +170,14 @@ export default function EditPanel() {
         </section>
 
         {/* Shadow */}
-        <section className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Shadow</h3>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
+        <section className={sectionClass}>
+          <h3 className={headingClass}>Shadow</h3>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
               checked={slide.style.textShadowEnabled}
               onChange={(e) => updateStyle({ textShadowEnabled: e.target.checked })}
-              className="accent-blue-500"
+              className="accent-violet-500"
             />
             Text Shadow
           </label>
@@ -167,20 +185,35 @@ export default function EditPanel() {
 
         {/* CTA-specific */}
         {slide.type === 'cta' && (
-          <section className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">CTA Settings</h3>
+          <section className={sectionClass}>
+            <h3 className={headingClass}>CTA Settings</h3>
             <ColorPicker
               label="Background"
               value={slide.backgroundColor}
               onChange={(v) => updateCtaSlide(slide.id, { backgroundColor: v })}
             />
-            <div>
+            <div className="space-y-2">
               <button
                 onClick={() => logoInputRef.current?.click()}
-                className="rounded bg-gray-700 px-3 py-1.5 text-xs text-white hover:bg-gray-600"
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white transition hover:bg-white/10"
               >
                 {slide.logoUrl ? 'Change Logo' : 'Upload Logo'}
               </button>
+              {slide.logoUrl && (
+                <div className="flex items-center gap-2">
+                  <img
+                    src={slide.logoUrl}
+                    alt="Logo"
+                    className="h-8 w-8 rounded object-contain bg-slate-800"
+                  />
+                  <button
+                    onClick={() => updateCtaSlide(slide.id, { logoUrl: null, logoFile: null })}
+                    className="text-xs text-slate-500 hover:text-white"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
               <input
                 ref={logoInputRef}
                 type="file"
@@ -201,13 +234,24 @@ export default function EditPanel() {
         )}
 
         {/* Export single */}
-        <section>
+        <section className="pt-1">
           <button
-            onClick={() => exportSingleSlide(slide, slideIndex)}
-            className="w-full rounded bg-green-700 px-3 py-2 text-sm font-medium text-white hover:bg-green-600"
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-600 disabled:opacity-50"
           >
-            Export This Slide
+            {exporting ? (
+              <>
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                Exporting…
+              </>
+            ) : (
+              'Export This Slide'
+            )}
           </button>
+          {exportError && (
+            <p className="mt-1.5 text-xs text-red-400">{exportError}</p>
+          )}
         </section>
       </div>
     </div>

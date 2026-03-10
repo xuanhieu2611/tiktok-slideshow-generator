@@ -41,33 +41,43 @@ export default function Filmstrip() {
     }
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return
+    const valid = Array.from(e.target.files).filter((f) =>
+      ['image/jpeg', 'image/png', 'image/webp'].includes(f.type)
+    )
+    if (valid.length > 0) addSlides(valid)
+    e.target.value = ''
+  }
+
   return (
-    <div className="flex h-full flex-col bg-gray-900 p-3">
-      <div className="mb-3 flex gap-2">
+    <div className="flex h-full flex-col bg-slate-900 p-3">
+      <div className="mb-3 flex gap-1.5">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="flex-1 rounded bg-gray-700 px-2 py-1.5 text-xs font-medium text-white hover:bg-gray-600"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
         >
-          + Images
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Images
         </button>
         <button
           onClick={addCtaSlide}
-          className="flex-1 rounded bg-gray-700 px-2 py-1.5 text-xs font-medium text-white hover:bg-gray-600"
+          className="flex flex-1 items-center justify-center gap-1 rounded-lg border border-white/10 bg-white/5 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
         >
-          + CTA
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          CTA
         </button>
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*"
+          accept=".jpg,.jpeg,.png,.webp"
           className="hidden"
-          onChange={(e) => {
-            if (e.target.files) {
-              addSlides(Array.from(e.target.files).filter((f) => f.type.startsWith('image/')))
-              e.target.value = ''
-            }
-          }}
+          onChange={handleFileChange}
         />
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto">
