@@ -161,3 +161,11 @@ export async function renderSlideToBlob(slide: Slide): Promise<Blob> {
     offscreen.toBlob((blob) => resolve(blob!), 'image/png')
   })
 }
+
+export async function renderSlideToJpegBlob(slide: Slide, quality = 0.9): Promise<Blob> {
+  const offscreen = document.createElement('canvas')
+  await drawSlide(offscreen, slide)
+  return new Promise((resolve) => {
+    offscreen.toBlob((blob) => resolve(blob!), 'image/jpeg', quality)
+  })
+}

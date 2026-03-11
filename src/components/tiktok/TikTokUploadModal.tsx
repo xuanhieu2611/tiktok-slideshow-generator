@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { v4 as uuidv4 } from 'uuid'
 import { useSlideshowStore } from '@/store/useSlideshowStore'
-import { renderSlideToBlob } from '@/lib/canvas-renderer'
+import { renderSlideToJpegBlob } from '@/lib/canvas-renderer'
+import { createBrowserSupabaseClient } from '@/lib/supabase'
 
 type UploadState = 'idle' | 'rendering' | 'uploading' | 'polling' | 'success' | 'error' | 'unknown'
 
@@ -56,26 +58,28 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
     setErrorMessage('')
     setRenderProgress({ current: 0, total: slides.length })
 
+    const uploadedFilenames: string[] = []
+
     try {
-      const blobs: Blob[] = []
+      const sb = createBrowserSupabaseClient()
+
       for (let i = 0; i < slides.length; i++) {
-        const blob = await renderSlideToBlob(slides[i])
-        blobs.push(blob)
+        const jpeg = await renderSlideToJpegBlob(slides[i])
+        const filename = `${uuidv4()}.jpg`
+        const { error } = await sb.storage
+          .from('tiktok-slides')
+          .upload(filename, jpeg, { contentType: 'image/jpeg' })
+        if (error) throw new Error(`Storage upload failed: ${error.message}`)
+        uploadedFilenames.push(filename)
         setRenderProgress({ current: i + 1, total: slides.length })
       }
 
       setUploadState('uploading')
 
-      const formData = new FormData()
-      formData.append('title', title)
-      formData.append('description', description)
-      blobs.forEach((blob, i) => {
-        formData.append(`slide${i}`, blob, `slide-${i + 1}.png`)
-      })
-
       const res = await fetch('/api/upload/slides', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, filenames: uploadedFilenames }),
       })
 
       const data = await res.json()
@@ -87,6 +91,11 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
       setUploadState('polling')
       pollUploadStatus(data.publishId)
     } catch (err) {
+      // Best-effort cleanup of any files already uploaded
+      if (uploadedFilenames.length > 0) {
+        const sb = createBrowserSupabaseClient()
+        await sb.storage.from('tiktok-slides').remove(uploadedFilenames)
+      }
       setUploadState('error')
       setErrorMessage(err instanceof Error ? err.message : 'Something went wrong')
     }
