@@ -1,46 +1,80 @@
 'use client'
 
 import { Suspense, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
+
+type Mode = 'signin' | 'signup'
 
 function LoginForm() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const next = searchParams.get('next') ?? '/'
   const urlError = searchParams.get('error')
 
+  const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [sent, setSent] = useState(false)
+  const [signUpSent, setSignUpSent] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setFormError(null)
 
-    const supabase = createBrowserSupabaseClient()
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      },
-    })
-
-    setLoading(false)
-
-    if (error) {
-      setFormError(error.message)
-    } else {
-      setSent(true)
+    if (mode === 'signup' && password !== confirmPassword) {
+      setFormError('Passwords do not match.')
+      return
     }
+    if (password.length < 6) {
+      setFormError('Password must be at least 6 characters.')
+      return
+    }
+
+    setLoading(true)
+    const supabase = createBrowserSupabaseClient()
+
+    if (mode === 'signin') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      setLoading(false)
+      if (error) {
+        setFormError(error.message)
+      } else {
+        router.push(next)
+      }
+    } else {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
+      })
+      setLoading(false)
+      if (error) {
+        setFormError(error.message)
+      } else if (data.session) {
+        // Email confirmation disabled — signed in immediately
+        router.push(next)
+      } else {
+        setSignUpSent(true)
+      }
+    }
+  }
+
+  const switchMode = (m: Mode) => {
+    setMode(m)
+    setFormError(null)
+    setPassword('')
+    setConfirmPassword('')
   }
 
   return (
     <div className="flex min-h-screen bg-[#030712]">
       {/* Left panel */}
       <div className="relative hidden flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-violet-950 via-slate-950 to-black lg:flex lg:w-1/2">
-        {/* Animated gradient orb */}
         <div className="pointer-events-none absolute inset-0">
           <div
             className="absolute left-1/4 top-1/3 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-20 blur-3xl"
@@ -59,7 +93,6 @@ function LoginForm() {
         </div>
 
         <div className="relative z-10 px-12 text-center">
-          {/* Logo */}
           <div className="mb-6 inline-flex items-center gap-2">
             <svg viewBox="0 0 24 24" className="h-10 w-10 fill-white">
               <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z" />
@@ -83,7 +116,6 @@ function LoginForm() {
             Design, edit, and upload directly from your browser.
           </p>
 
-          {/* Feature pills */}
           <div className="flex flex-col items-center gap-3">
             {[
               { icon: '🖼️', label: '1080×1350 Native Canvas' },
@@ -113,10 +145,37 @@ function LoginForm() {
             <span className="text-lg font-bold text-white">TikTok Slideshow Maker</span>
           </div>
 
-          <h1 className="mb-1 text-2xl font-bold text-white">Welcome back</h1>
-          <p className="mb-8 text-sm text-slate-400">Sign in with your email to continue</p>
+          <h1 className="mb-1 text-2xl font-bold text-white">
+            {mode === 'signin' ? 'Welcome back' : 'Create account'}
+          </h1>
+          <p className="mb-6 text-sm text-slate-400">
+            {mode === 'signin' ? 'Sign in to continue' : 'Sign up to get started'}
+          </p>
 
-          {/* URL error alert */}
+          {/* Tab switcher */}
+          <div className="mb-6 flex rounded-xl bg-white/[0.04] p-1 ring-1 ring-white/[0.08]">
+            {(['signin', 'signup'] as Mode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => switchMode(m)}
+                className="flex-1 rounded-lg py-2 text-sm font-medium transition-all"
+                style={
+                  mode === m
+                    ? {
+                        background: 'linear-gradient(135deg, #7c3aed, #9333ea)',
+                        color: '#fff',
+                        boxShadow: '0 0 12px rgba(124,58,237,0.35)',
+                      }
+                    : { color: '#94a3b8' }
+                }
+              >
+                {m === 'signin' ? 'Sign In' : 'Sign Up'}
+              </button>
+            ))}
+          </div>
+
+          {/* URL error */}
           {urlError && (
             <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
               {urlError === 'no_code'
@@ -125,9 +184,8 @@ function LoginForm() {
             </div>
           )}
 
-          {sent ? (
+          {signUpSent ? (
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-8 text-center backdrop-blur-xl">
-              {/* Animated checkmark */}
               <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600/20">
                 <svg
                   className="h-7 w-7 text-violet-400"
@@ -144,12 +202,18 @@ function LoginForm() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-              <h2 className="mb-2 text-lg font-semibold text-white">Check your email</h2>
+              <h2 className="mb-2 text-lg font-semibold text-white">Confirm your email</h2>
               <p className="text-sm text-slate-400">
-                We sent a magic link to{' '}
-                <span className="font-medium text-white">{email}</span>
-                .<br />Click it to sign in instantly.
+                We sent a confirmation link to{' '}
+                <span className="font-medium text-white">{email}</span>.<br />
+                After confirming, you can sign in with your password.
               </p>
+              <button
+                className="mt-5 text-sm text-violet-400 underline underline-offset-2"
+                onClick={() => { setSignUpSent(false); switchMode('signin') }}
+              >
+                Back to sign in
+              </button>
             </div>
           ) : (
             <form
@@ -169,6 +233,36 @@ function LoginForm() {
                 className="mb-4 w-full rounded-xl bg-white/[0.05] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none ring-1 ring-white/10 transition focus:ring-violet-500/60"
               />
 
+              <label className="mb-1.5 block text-sm font-medium text-slate-300" htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="mb-4 w-full rounded-xl bg-white/[0.05] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none ring-1 ring-white/10 transition focus:ring-violet-500/60"
+              />
+
+              {mode === 'signup' && (
+                <>
+                  <label className="mb-1.5 block text-sm font-medium text-slate-300" htmlFor="confirm">
+                    Confirm password
+                  </label>
+                  <input
+                    id="confirm"
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="mb-4 w-full rounded-xl bg-white/[0.05] px-4 py-3 text-sm text-white placeholder-slate-500 outline-none ring-1 ring-white/10 transition focus:ring-violet-500/60"
+                  />
+                </>
+              )}
+
               {formError && (
                 <p className="mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
                   {formError}
@@ -184,14 +278,12 @@ function LoginForm() {
                   boxShadow: loading ? 'none' : '0 0 20px rgba(124,58,237,0.4)',
                 }}
               >
-                {loading ? 'Sending…' : 'Send Magic Link'}
+                {loading
+                  ? mode === 'signin' ? 'Signing in…' : 'Creating account…'
+                  : mode === 'signin' ? 'Sign In' : 'Create Account'}
               </button>
             </form>
           )}
-
-          <p className="mt-6 text-center text-xs text-slate-600">
-            No password needed. We&apos;ll email you a sign-in link.
-          </p>
         </div>
       </div>
 

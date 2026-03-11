@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
-  const isProtectedPage = pathname.startsWith('/editor')
+  const isProtectedPage = pathname === '/' || pathname.startsWith('/editor')
   const isProtectedApi =
     pathname.startsWith('/api/') &&
     !pathname.startsWith('/api/auth/callback') &&
