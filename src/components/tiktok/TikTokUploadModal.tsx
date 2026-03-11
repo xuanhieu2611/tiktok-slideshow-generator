@@ -159,7 +159,7 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-white">
               <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z" />
             </svg>
-            Upload to TikTok
+            Save Draft to TikTok
           </h2>
           {!isInProgress && (
             <button
@@ -226,7 +226,6 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
               </div>
 
               <div className="space-y-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-3 text-xs text-slate-500">
-                <p>Your slides will be uploaded as a draft. Check TikTok inbox to finish posting.</p>
                 <p>Images are converted from PNG to JPEG for TikTok compatibility.</p>
                 <p>Rate limit: ~6 photo posts/min, ~15/day per account.</p>
               </div>
@@ -309,13 +308,13 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
                 </svg>
               </div>
               <div>
-                <p className="font-semibold text-white">Slides uploaded!</p>
+                <p className="font-semibold text-white">Draft saved!</p>
                 <p className="mt-1 text-sm text-slate-400">
-                  Open TikTok and check your{' '}
+                  Your slides were saved as a draft in your TikTok inbox. Open{' '}
                   <a href="https://www.tiktok.com/inbox" target="_blank" rel="noopener noreferrer" className="text-violet-400 underline hover:text-violet-300">
-                    inbox
+                    TikTok
                   </a>{' '}
-                  to finish posting.
+                  to review and publish.
                 </p>
               </div>
             </div>
@@ -372,7 +371,7 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
                 className="rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, #7c3aed, #9333ea)' }}
               >
-                Upload ({slides.length})
+                Save as Draft ({slides.length})
               </button>
             </>
           )}

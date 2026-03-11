@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { clearSession } from '@/lib/tiktok-session'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getComposio } from '@/lib/composio'
 
 export async function POST() {
   const supabase = await createServerSupabaseClient()
@@ -12,6 +12,15 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  await clearSession(user.id)
+  const composio = getComposio()
+  const accounts = await composio.connectedAccounts.list({
+    userIds: [user.id],
+    toolkitSlugs: ['tiktok'],
+  })
+
+  for (const account of accounts.items ?? []) {
+    await composio.connectedAccounts.delete(account.id)
+  }
+
   return NextResponse.json({ ok: true })
 }

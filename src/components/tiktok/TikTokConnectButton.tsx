@@ -1,9 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import { useTikTokAuth } from '@/hooks/useTikTokAuth'
 
 export default function TikTokConnectButton() {
   const { connected, username, loading, error, connect, disconnect } = useTikTokAuth()
+  const [connecting, setConnecting] = useState(false)
+
+  const handleConnect = async () => {
+    setConnecting(true)
+    await connect()
+    setConnecting(false)
+  }
 
   if (loading) {
     return <div className="h-7 w-32 animate-pulse rounded-lg bg-white/10" />
@@ -41,14 +49,18 @@ export default function TikTokConnectButton() {
   }
 
   return (
-    <button
-      onClick={connect}
-      className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
-    >
-      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white">
-        <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z" />
-      </svg>
-      Connect TikTok
-    </button>
+    <div className="flex flex-col items-end gap-1">
+      <button
+        onClick={handleConnect}
+        disabled={connecting}
+        className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white disabled:opacity-50"
+      >
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-white">
+          <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.3 6.3 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z" />
+        </svg>
+        {connecting ? 'Connecting…' : 'Connect TikTok'}
+      </button>
+      {error && <p className="text-[10px] text-red-400">{error}</p>}
+    </div>
   )
 }

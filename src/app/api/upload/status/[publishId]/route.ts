@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getValidAccessToken, fetchPublishStatus } from '@/lib/tiktok-api'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getComposio, TIKTOK_TOOLKIT_VERSION } from '@/lib/composio'
 
 export async function GET(
   _req: NextRequest,
@@ -18,8 +18,20 @@ export async function GET(
   const { publishId } = await params
 
   try {
-    const accessToken = await getValidAccessToken(user.id)
-    const status = await fetchPublishStatus(accessToken, publishId)
+    const composio = getComposio()
+    const result = await composio.tools.execute('TIKTOK_FETCH_PUBLISH_STATUS', {
+      userId: user.id,
+      arguments: { publish_id: publishId },
+      version: TIKTOK_TOOLKIT_VERSION,
+    })
+
+    if (!result.successful) {
+      throw new Error(result.error ?? 'Failed to fetch status')
+    }
+
+    const d = result.data as Record<string, unknown>
+    const inner = d?.data as Record<string, unknown> | undefined
+    const status = inner?.status ?? d?.status ?? null
     return NextResponse.json({ status })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to fetch status'

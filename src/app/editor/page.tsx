@@ -86,7 +86,7 @@ export default function EditorPage() {
               onClick={() => setIsUploadOpen(true)}
               className="rounded-lg border border-white/10 bg-[#010101] px-3 py-1.5 text-xs font-medium text-white transition hover:bg-slate-800"
             >
-              Upload to TikTok
+              Save Draft to TikTok
             </button>
           )}
           <ExportButtons />

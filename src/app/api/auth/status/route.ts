@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { getSession } from '@/lib/tiktok-session'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { getComposio, TIKTOK_TOOLKIT_VERSION } from '@/lib/composio'
 
 export async function GET() {
   const supabase = await createServerSupabaseClient()
@@ -12,13 +12,33 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const session = await getSession(user.id)
-  if (!session) {
+  const composio = getComposio()
+  const accounts = await composio.connectedAccounts.list({
+    userIds: [user.id],
+    toolkitSlugs: ['tiktok'],
+    statuses: ['ACTIVE'],
+  })
+
+  if (!accounts.items || accounts.items.length === 0) {
     return NextResponse.json({ connected: false })
   }
-  return NextResponse.json({
-    connected: true,
-    username: session.username,
-    openId: session.openId,
-  })
+
+  // Fetch TikTok username
+  let username = ''
+  try {
+    const result = await composio.tools.execute('TIKTOK_GET_USER_BASIC_INFO', {
+      userId: user.id,
+      arguments: {},
+      version: TIKTOK_TOOLKIT_VERSION,
+    })
+    if (result.successful && result.data) {
+      const d = result.data as Record<string, unknown>
+      const inner = (d?.data as Record<string, unknown>)?.user as Record<string, unknown> | undefined
+      username = String(inner?.display_name ?? inner?.username ?? '')
+    }
+  } catch {
+    // username is optional
+  }
+
+  return NextResponse.json({ connected: true, username })
 }
