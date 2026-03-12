@@ -2,7 +2,7 @@ import { Slide, TextStyle } from '@/types'
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from '@/constants/defaults'
 import { loadImage, computeCoverDimensions } from './image-utils'
 
-const PADDING_X = 60
+const PADDING_X = 140
 const LINE_HEIGHT_MULTIPLIER = 1.3
 const TEXT_GAP = 20
 
