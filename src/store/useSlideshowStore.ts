@@ -1,13 +1,15 @@
 import { create } from 'zustand'
-import { Slide, ImageSlide, CtaSlide, TextStyle } from '@/types'
+import { Slide, ImageSlide, CtaSlide, TextStyle, AspectRatio } from '@/types'
 import { DEFAULT_STYLE } from '@/constants/defaults'
 
 interface SlideshowState {
   slides: Slide[]
   selectedSlideId: string | null
   globalStyle: TextStyle
+  aspectRatio: AspectRatio
 
   addSlides: (files: File[]) => void
+  setAspectRatio: (ratio: AspectRatio) => void
   removeSlide: (id: string) => void
   reorderSlides: (ids: string[]) => void
   selectSlide: (id: string | null) => void
@@ -28,6 +30,9 @@ export const useSlideshowStore = create<SlideshowState>((set, get) => ({
   slides: [],
   selectedSlideId: null,
   globalStyle: { ...DEFAULT_STYLE },
+  aspectRatio: '4:5',
+
+  setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
 
   addSlides: (files: File[]) => {
     const newSlides: ImageSlide[] = files.map((file) => ({

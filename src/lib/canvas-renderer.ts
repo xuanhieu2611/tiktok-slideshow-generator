@@ -34,14 +34,14 @@ function getTextAlign(alignment: string): CanvasTextAlign {
   return alignment as CanvasTextAlign
 }
 
-function getTextX(alignment: string): number {
+function getTextX(alignment: string, canvasWidth: number): number {
   switch (alignment) {
     case 'left':
       return PADDING_X
     case 'right':
-      return CANVAS_WIDTH - PADDING_X
+      return canvasWidth - PADDING_X
     default:
-      return CANVAS_WIDTH / 2
+      return canvasWidth / 2
   }
 }
 
@@ -49,10 +49,12 @@ function drawTextBlock(
   ctx: CanvasRenderingContext2D,
   style: TextStyle,
   headline: string,
-  subtitle: string
+  subtitle: string,
+  canvasWidth: number,
+  canvasHeight: number
 ) {
-  const maxWidth = CANVAS_WIDTH - PADDING_X * 2
-  const textX = getTextX(style.textAlignment)
+  const maxWidth = canvasWidth - PADDING_X * 2
+  const textX = getTextX(style.textAlignment, canvasWidth)
   ctx.textAlign = getTextAlign(style.textAlignment)
 
   if (style.textShadowEnabled) {
@@ -68,6 +70,12 @@ function drawTextBlock(
   }
 
   ctx.fillStyle = style.fontColor
+
+  if (style.textStrokeEnabled) {
+    ctx.strokeStyle = 'black'
+    ctx.lineWidth = 8
+    ctx.lineJoin = 'round'
+  }
 
   ctx.font = `${style.headlineFontWeight} ${style.headlineFontSize}px "${style.fontFamily}"`
   const headlineLines = wrapText(ctx, headline, maxWidth)
@@ -88,20 +96,22 @@ function drawTextBlock(
       startY = 150
       break
     case 'bottom':
-      startY = CANVAS_HEIGHT - 150 - totalHeight
+      startY = canvasHeight - 150 - totalHeight
       break
     default:
-      startY = (CANVAS_HEIGHT - totalHeight) / 2
+      startY = (canvasHeight - totalHeight) / 2
   }
 
   ctx.font = `${style.headlineFontWeight} ${style.headlineFontSize}px "${style.fontFamily}"`
   headlineLines.forEach((line, i) => {
+    if (style.textStrokeEnabled) ctx.strokeText(line, textX, startY + (i + 1) * headlineLineHeight)
     ctx.fillText(line, textX, startY + (i + 1) * headlineLineHeight)
   })
 
   ctx.font = `${style.subtitleFontWeight} ${style.subtitleFontSize}px "${style.fontFamily}"`
   const subtitleStartY = startY + headlineHeight + gap
   subtitleLines.forEach((line, i) => {
+    if (style.textStrokeEnabled) ctx.strokeText(line, textX, subtitleStartY + (i + 1) * subtitleLineHeight)
     ctx.fillText(line, textX, subtitleStartY + (i + 1) * subtitleLineHeight)
   })
 
@@ -109,25 +119,28 @@ function drawTextBlock(
   ctx.shadowBlur = 0
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = 0
+  ctx.lineWidth = 1
 }
 
 export async function drawSlide(
   canvas: HTMLCanvasElement,
-  slide: Slide
+  slide: Slide,
+  width = CANVAS_WIDTH,
+  height = CANVAS_HEIGHT
 ): Promise<void> {
   const ctx = canvas.getContext('2d')!
-  canvas.width = CANVAS_WIDTH
-  canvas.height = CANVAS_HEIGHT
+  canvas.width = width
+  canvas.height = height
 
   await document.fonts.ready
 
   if (slide.type === 'image') {
     const img = await loadImage(slide.imageUrl)
-    const crop = computeCoverDimensions(img.width, img.height, CANVAS_WIDTH, CANVAS_HEIGHT)
-    ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+    const crop = computeCoverDimensions(img.width, img.height, width, height)
+    ctx.drawImage(img, crop.sx, crop.sy, crop.sw, crop.sh, 0, 0, width, height)
   } else {
     ctx.fillStyle = slide.backgroundColor
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+    ctx.fillRect(0, 0, width, height)
 
     if (slide.logoUrl) {
       try {
@@ -137,7 +150,7 @@ export async function drawSlide(
         const scale = Math.min(maxLogoW / logo.width, maxLogoH / logo.height, 1)
         const logoW = logo.width * scale
         const logoH = logo.height * scale
-        const logoX = (CANVAS_WIDTH - logoW) / 2
+        const logoX = (width - logoW) / 2
         const logoY = 200
         ctx.drawImage(logo, logoX, logoY, logoW, logoH)
       } catch {
@@ -148,23 +161,23 @@ export async function drawSlide(
 
   if (slide.style.overlayEnabled) {
     ctx.fillStyle = `rgba(0, 0, 0, ${slide.style.overlayOpacity / 100})`
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
+    ctx.fillRect(0, 0, width, height)
   }
 
-  drawTextBlock(ctx, slide.style, slide.headline, slide.subtitle)
+  drawTextBlock(ctx, slide.style, slide.headline, slide.subtitle, width, height)
 }
 
-export async function renderSlideToBlob(slide: Slide): Promise<Blob> {
+export async function renderSlideToBlob(slide: Slide, width = CANVAS_WIDTH, height = CANVAS_HEIGHT): Promise<Blob> {
   const offscreen = document.createElement('canvas')
-  await drawSlide(offscreen, slide)
+  await drawSlide(offscreen, slide, width, height)
   return new Promise((resolve) => {
     offscreen.toBlob((blob) => resolve(blob!), 'image/png')
   })
 }
 
-export async function renderSlideToJpegBlob(slide: Slide, quality = 0.9): Promise<Blob> {
+export async function renderSlideToJpegBlob(slide: Slide, quality = 0.9, width = CANVAS_WIDTH, height = CANVAS_HEIGHT): Promise<Blob> {
   const offscreen = document.createElement('canvas')
-  await drawSlide(offscreen, slide)
+  await drawSlide(offscreen, slide, width, height)
   return new Promise((resolve) => {
     offscreen.toBlob((blob) => resolve(blob!), 'image/jpeg', quality)
   })

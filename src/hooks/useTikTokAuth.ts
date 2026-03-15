@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 
 interface TikTokAuthState {
   connected: boolean
@@ -68,7 +68,7 @@ export function useTikTokAuth() {
   })
   const connectingRef = useRef(false)
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     try {
       const res = await fetch('/api/auth/status')
       const data = await res.json()
@@ -76,11 +76,13 @@ export function useTikTokAuth() {
     } catch {
       setState({ connected: false, username: '', loading: false, error: null })
     }
-  }
+  }, [])
 
   useEffect(() => {
     refresh()
-  }, [])
+    const interval = setInterval(refresh, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [refresh])
 
   const disconnect = async () => {
     const prev = state

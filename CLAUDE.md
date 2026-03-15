@@ -92,6 +92,9 @@ After implementing any significant change (new feature, major bug fix, workflow 
 
 ## Changelog
 
+### 2026-03-14 (session 7)
+- **TikTok expired token detection**: `auth/status` route now uses `TIKTOK_GET_USER_BASIC_INFO` as a token validator — returns `{ connected: false }` if the call fails or returns `!successful` (instead of silently returning `connected: true`). `useTikTokAuth` hook wraps `refresh` in `useCallback` and polls every 5 minutes via `setInterval` so expiry is detected proactively. `TikTokUploadModal` gains a `session_expired` upload state: detects 401 / "not connected" errors from `/api/upload/slides`, cleans up any already-uploaded files, and shows a yellow warning screen with a "Reconnect TikTok" button (calls `onClose` + `onReconnect`). `editor/page.tsx` passes `connect` as `onReconnect` to the modal.
+
 ### 2026-03-10 (session 4)
 - **Multi-user auth migration**: Added Supabase Auth (magic link). New `src/proxy.ts` (Next.js 16 proxy replacing deprecated middleware) protects `/editor` and `/api/*` routes. New `src/app/login/page.tsx` (magic link form), `src/app/auth/callback/route.ts` (OTP code exchange), `src/hooks/useUser.ts`. Split `supabase.ts` into `supabase.ts` (browser-safe: `getAdminClient`, `createBrowserSupabaseClient`) and `supabase-server.ts` (server-only: `createServerSupabaseClient` using `next/headers`). All `tiktok-session.ts` functions now accept `userId: string`; `tiktok_sessions` table PK changed from `id='singleton'` to `user_id UUID`. All API routes get user via `createServerSupabaseClient().auth.getUser()` and pass `user.id` to session functions. TikTok OAuth stores `tiktok_oauth_state` + `tiktok_oauth_user_id` in httpOnly cookies. Cleanup cron protected by `CRON_SECRET` bearer token. Editor header shows user email + sign out button. New dep: `@supabase/ssr`.
 

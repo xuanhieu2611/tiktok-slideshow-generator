@@ -2,17 +2,20 @@
 
 import { useState } from 'react'
 import { useSlideshowStore } from '@/store/useSlideshowStore'
+import { getCanvasDimensions } from '@/constants/defaults'
 import { exportAllAsZip } from '@/lib/export'
 
 export default function ExportButtons() {
   const slides = useSlideshowStore((s) => s.slides)
+  const aspectRatio = useSlideshowStore((s) => s.aspectRatio)
   const [exporting, setExporting] = useState(false)
 
   const handleExportAll = async () => {
     if (slides.length === 0) return
     setExporting(true)
+    const { width, height } = getCanvasDimensions(aspectRatio)
     try {
-      await exportAllAsZip(slides)
+      await exportAllAsZip(slides, width, height)
     } finally {
       setExporting(false)
     }

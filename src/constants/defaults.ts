@@ -1,4 +1,4 @@
-import { TextStyle, FontFamily } from '@/types'
+import { TextStyle, FontFamily, AspectRatio } from '@/types'
 
 export const DEFAULT_STYLE: TextStyle = {
   fontFamily: 'Inter',
@@ -10,12 +10,17 @@ export const DEFAULT_STYLE: TextStyle = {
   textPosition: 'center',
   textAlignment: 'center',
   overlayEnabled: true,
-  overlayOpacity: 40,
+  overlayOpacity: 20,
   textShadowEnabled: true,
+  textStrokeEnabled: false,
 }
 
 export const CANVAS_WIDTH = 1080
 export const CANVAS_HEIGHT = 1350
+
+export function getCanvasDimensions(ratio: AspectRatio): { width: number; height: number } {
+  return ratio === '9:16' ? { width: 1080, height: 1920 } : { width: 1080, height: 1350 }
+}
 
 export const FONT_LIST: FontFamily[] = [
   'Inter',

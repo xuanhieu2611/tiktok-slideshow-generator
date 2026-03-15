@@ -4,13 +4,15 @@ import { useEffect, useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { useSlideshowStore } from '@/store/useSlideshowStore'
 import { renderSlideToJpegBlob } from '@/lib/canvas-renderer'
+import { getCanvasDimensions } from '@/constants/defaults'
 import { createBrowserSupabaseClient } from '@/lib/supabase'
 
-type UploadState = 'idle' | 'rendering' | 'uploading' | 'polling' | 'success' | 'error' | 'unknown'
+type UploadState = 'idle' | 'rendering' | 'uploading' | 'polling' | 'success' | 'error' | 'unknown' | 'session_expired'
 
 interface TikTokUploadModalProps {
   isOpen: boolean
   onClose: () => void
+  onReconnect: () => void
 }
 
 const POLL_STEPS = ['Uploaded', 'Processing', 'Ready'] as const
@@ -22,8 +24,9 @@ const STATUS_TO_STEP: Record<string, number> = {
   PUBLISH_COMPLETE: 2,
 }
 
-export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModalProps) {
+export default function TikTokUploadModal({ isOpen, onClose, onReconnect }: TikTokUploadModalProps) {
   const slides = useSlideshowStore((s) => s.slides)
+  const aspectRatio = useSlideshowStore((s) => s.aspectRatio)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [uploadState, setUploadState] = useState<UploadState>('idle')
@@ -63,8 +66,9 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
     try {
       const sb = createBrowserSupabaseClient()
 
+      const { width, height } = getCanvasDimensions(aspectRatio)
       for (let i = 0; i < slides.length; i++) {
-        const jpeg = await renderSlideToJpegBlob(slides[i])
+        const jpeg = await renderSlideToJpegBlob(slides[i], 0.9, width, height)
         const filename = `${uuidv4()}.jpg`
         const { error } = await sb.storage
           .from('tiktok-slides')
@@ -84,6 +88,14 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
 
       const data = await res.json()
       if (!res.ok) {
+        if (res.status === 401 || data.error?.toLowerCase().includes('not connected')) {
+          if (uploadedFilenames.length > 0) {
+            const sb = createBrowserSupabaseClient()
+            await sb.storage.from('tiktok-slides').remove(uploadedFilenames)
+          }
+          setUploadState('session_expired')
+          return
+        }
         throw new Error(data.error || 'Upload failed')
       }
 
@@ -362,6 +374,20 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
               </div>
             </div>
           )}
+
+          {uploadState === 'session_expired' && (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full border border-yellow-500/20 bg-yellow-500/10">
+                <svg className="h-7 w-7 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-white">TikTok session expired</p>
+                <p className="mt-1 text-sm text-slate-400">Your connection expired. Please reconnect and try again.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -384,7 +410,7 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
               </button>
             </>
           )}
-          {(uploadState === 'success' || uploadState === 'error' || uploadState === 'unknown') && (
+          {(uploadState === 'success' || uploadState === 'error' || uploadState === 'unknown' || uploadState === 'session_expired') && (
             <button
               onClick={onClose}
               className="rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
@@ -399,6 +425,15 @@ export default function TikTokUploadModal({ isOpen, onClose }: TikTokUploadModal
               style={{ background: 'linear-gradient(135deg, #7c3aed, #9333ea)' }}
             >
               Try Again
+            </button>
+          )}
+          {uploadState === 'session_expired' && (
+            <button
+              onClick={() => { onClose(); onReconnect() }}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-white transition"
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #9333ea)' }}
+            >
+              Reconnect TikTok
             </button>
           )}
         </div>
