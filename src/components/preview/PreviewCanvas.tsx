@@ -1,13 +1,16 @@
 'use client'
 
 import { useSlideshowStore } from '@/store/useSlideshowStore'
+import { getCanvasDimensions } from '@/constants/defaults'
 import { useCanvasRenderer } from './useCanvasRenderer'
 
 export default function PreviewCanvas() {
   const slide = useSlideshowStore((s) =>
     s.slides.find((sl) => sl.id === s.selectedSlideId)
   )
-  const { canvasRef, isRendering } = useCanvasRenderer(slide)
+  const aspectRatio = useSlideshowStore((s) => s.aspectRatio)
+  const { width, height } = getCanvasDimensions(aspectRatio)
+  const { canvasRef, isRendering } = useCanvasRenderer(slide, width, height)
 
   if (!slide) {
     return (
@@ -23,7 +26,7 @@ export default function PreviewCanvas() {
         ref={canvasRef}
         data-rendering={isRendering}
         className="max-h-full rounded shadow-2xl transition-opacity duration-150 data-[rendering=true]:opacity-60"
-        style={{ aspectRatio: '4/5', maxWidth: '100%', height: 'auto', maxHeight: '100%' }}
+        style={{ aspectRatio: `${width}/${height}`, maxWidth: '100%', height: 'auto', maxHeight: '100%' }}
       />
       {isRendering && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2">

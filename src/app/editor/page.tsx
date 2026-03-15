@@ -20,11 +20,13 @@ type Toast = { message: string; type: 'success' | 'error' | 'info' }
 export default function EditorPage() {
   const router = useRouter()
   const slideCount = useSlideshowStore((s) => s.slides.length)
+  const aspectRatio = useSlideshowStore((s) => s.aspectRatio)
+  const setAspectRatio = useSlideshowStore((s) => s.setAspectRatio)
   const [isBulkEditOpen, setIsBulkEditOpen] = useState(false)
   const [isUploadOpen, setIsUploadOpen] = useState(false)
   const [toast, setToast] = useState<Toast | null>(null)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
-  const { connected, error: tiktokError } = useTikTokAuth()
+  const { connected, connect, error: tiktokError } = useTikTokAuth()
   const { user, logout } = useUser()
 
   useEffect(() => {
@@ -77,7 +79,24 @@ export default function EditorPage() {
           </button>
         </div>
 
-        <span className="text-xs text-slate-600">{slideCount} slide{slideCount !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-600">{slideCount} slide{slideCount !== 1 ? 's' : ''}</span>
+          <div className="flex rounded-lg border border-white/10 bg-white/5 p-0.5">
+            {(['4:5', '9:16'] as const).map((ratio) => (
+              <button
+                key={ratio}
+                onClick={() => setAspectRatio(ratio)}
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
+                  aspectRatio === ratio
+                    ? 'bg-violet-600 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {ratio}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           <TikTokConnectButton />
@@ -126,7 +145,7 @@ export default function EditorPage() {
       </header>
 
       <BulkEditModal isOpen={isBulkEditOpen} onClose={() => setIsBulkEditOpen(false)} />
-      <TikTokUploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} />
+      <TikTokUploadModal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} onReconnect={connect} />
 
       {/* Main content: three columns */}
       <div className="flex flex-1 overflow-hidden">

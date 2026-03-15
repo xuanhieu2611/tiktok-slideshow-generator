@@ -1,3 +1,4 @@
+export type AspectRatio = '4:5' | '9:16'
 export type TextPosition = 'top' | 'center' | 'bottom'
 export type TextAlignment = 'left' | 'center' | 'right'
 export type FontFamily =
@@ -21,6 +22,7 @@ export interface TextStyle {
   overlayEnabled: boolean
   overlayOpacity: number
   textShadowEnabled: boolean
+  textStrokeEnabled: boolean
 }
 
 export interface ImageSlide {

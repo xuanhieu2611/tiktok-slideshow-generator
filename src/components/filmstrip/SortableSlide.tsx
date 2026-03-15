@@ -3,6 +3,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Slide } from '@/types'
+import { useSlideshowStore } from '@/store/useSlideshowStore'
 
 interface SortableSlideProps {
   slide: Slide
@@ -21,6 +22,9 @@ export default function SortableSlide({
 }: SortableSlideProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: slide.id })
+  const aspectRatio = useSlideshowStore((s) => s.aspectRatio)
+  const thumbW = 88
+  const thumbH = aspectRatio === '9:16' ? Math.round(thumbW * 16 / 9) : Math.round(thumbW * 5 / 4)
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -43,7 +47,7 @@ export default function SortableSlide({
           : 'border-transparent hover:border-slate-600'
       }`}
     >
-      <div className="h-[120px] w-[88px] overflow-hidden rounded-md bg-slate-800">
+      <div className="overflow-hidden rounded-md bg-slate-800" style={{ width: thumbW, height: thumbH }}>
         {slide.type === 'image' ? (
           <img
             src={slide.imageUrl}
@@ -82,7 +86,7 @@ export default function SortableSlide({
 
       {/* Headline preview */}
       {headline && (
-        <p className="mt-0.5 w-[88px] truncate text-center text-[9px] text-slate-500">
+        <p className="mt-0.5 truncate text-center text-[9px] text-slate-500" style={{ width: thumbW }}>
           {headline}
         </p>
       )}

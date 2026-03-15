@@ -23,7 +23,7 @@ export async function GET() {
     return NextResponse.json({ connected: false })
   }
 
-  // Fetch TikTok username
+  // Validate token by fetching TikTok username
   let username = ''
   try {
     const result = await composio.tools.execute('TIKTOK_GET_USER_BASIC_INFO', {
@@ -31,13 +31,16 @@ export async function GET() {
       arguments: {},
       version: TIKTOK_TOOLKIT_VERSION,
     })
-    if (result.successful && result.data) {
+    if (!result.successful) {
+      return NextResponse.json({ connected: false })
+    }
+    if (result.data) {
       const d = result.data as Record<string, unknown>
       const inner = (d?.data as Record<string, unknown>)?.user as Record<string, unknown> | undefined
       username = String(inner?.display_name ?? inner?.username ?? '')
     }
   } catch {
-    // username is optional
+    return NextResponse.json({ connected: false })
   }
 
   return NextResponse.json({ connected: true, username })

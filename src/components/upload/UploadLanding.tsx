@@ -10,6 +10,8 @@ export default function UploadLanding() {
   const addSlides = useSlideshowStore((s) => s.addSlides)
   const slides = useSlideshowStore((s) => s.slides)
   const removeSlide = useSlideshowStore((s) => s.removeSlide)
+  const aspectRatio = useSlideshowStore((s) => s.aspectRatio)
+  const setAspectRatio = useSlideshowStore((s) => s.setAspectRatio)
   const { user, logout } = useUser()
 
   const handleFiles = (files: File[]) => {
@@ -85,8 +87,8 @@ export default function UploadLanding() {
           </p>
 
           {/* Feature pills */}
-          <div className="mb-8 flex flex-wrap justify-center gap-2">
-            {['1080×1350 Canvas', 'TikTok Native', 'Export as ZIP'].map((label) => (
+          <div className="mb-6 flex flex-wrap justify-center gap-2">
+            {['TikTok Native', 'Export as ZIP'].map((label) => (
               <span
                 key={label}
                 className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-400"
@@ -94,6 +96,36 @@ export default function UploadLanding() {
                 {label}
               </span>
             ))}
+          </div>
+
+          {/* Aspect ratio selector */}
+          <div className="mb-8 flex flex-col items-center gap-2">
+            <span className="text-xs text-slate-500">Canvas format</span>
+            <div className="flex gap-3">
+              {([
+                { ratio: '4:5' as const, dims: '1080×1350', label: '4:5', desc: 'Square-ish' },
+                { ratio: '9:16' as const, dims: '1080×1920', label: '9:16', desc: 'Full screen' },
+              ]).map(({ ratio, dims, label, desc }) => (
+                <button
+                  key={ratio}
+                  onClick={() => setAspectRatio(ratio)}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-5 py-3 transition ${
+                    aspectRatio === ratio
+                      ? 'border-violet-500/60 bg-violet-500/10 text-white'
+                      : 'border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:text-slate-300'
+                  }`}
+                >
+                  <div className={`flex items-end justify-center gap-0.5`}>
+                    <div
+                      className={`rounded-sm border-2 ${aspectRatio === ratio ? 'border-violet-400' : 'border-slate-600'}`}
+                      style={ratio === '9:16' ? { width: 14, height: 24 } : { width: 18, height: 22 }}
+                    />
+                  </div>
+                  <span className="text-sm font-semibold">{label}</span>
+                  <span className="text-[10px] text-slate-500">{dims}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <DropZone onFiles={handleFiles} />

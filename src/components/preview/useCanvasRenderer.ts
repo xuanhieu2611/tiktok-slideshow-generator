@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Slide } from '@/types'
 import { drawSlide } from '@/lib/canvas-renderer'
 
-export function useCanvasRenderer(slide: Slide | undefined) {
+export function useCanvasRenderer(slide: Slide | undefined, width: number, height: number) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isRendering, setIsRendering] = useState(false)
 
@@ -14,7 +14,7 @@ export function useCanvasRenderer(slide: Slide | undefined) {
 
     let cancelled = false
     setIsRendering(true)
-    drawSlide(canvas, slide).then(() => {
+    drawSlide(canvas, slide, width, height).then(() => {
       if (cancelled) return
       setIsRendering(false)
     })
@@ -23,7 +23,7 @@ export function useCanvasRenderer(slide: Slide | undefined) {
       cancelled = true
       setIsRendering(false)
     }
-  }, [slide])
+  }, [slide, width, height])
 
   return { canvasRef, isRendering }
 }

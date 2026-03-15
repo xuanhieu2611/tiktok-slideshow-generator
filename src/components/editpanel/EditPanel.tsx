@@ -8,6 +8,7 @@ import ColorPicker from '@/components/ui/ColorPicker'
 import Slider from '@/components/ui/Slider'
 import Select from '@/components/ui/Select'
 import { exportSingleSlide } from '@/lib/export'
+import { getCanvasDimensions } from '@/constants/defaults'
 
 export default function EditPanel() {
   const slide = useSlideshowStore((s) =>
@@ -19,6 +20,7 @@ export default function EditPanel() {
   const updateSlideStyle = useSlideshowStore((s) => s.updateSlideStyle)
   const updateSlideText = useSlideshowStore((s) => s.updateSlideText)
   const updateCtaSlide = useSlideshowStore((s) => s.updateCtaSlide)
+  const aspectRatio = useSlideshowStore((s) => s.aspectRatio)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
@@ -39,7 +41,8 @@ export default function EditPanel() {
     setExporting(true)
     setExportError(null)
     try {
-      await exportSingleSlide(slide, slideIndex)
+      const { width, height } = getCanvasDimensions(aspectRatio)
+      await exportSingleSlide(slide, slideIndex, width, height)
     } catch (err) {
       setExportError(err instanceof Error ? err.message : 'Export failed')
     } finally {
@@ -169,9 +172,9 @@ export default function EditPanel() {
           )}
         </section>
 
-        {/* Shadow */}
+        {/* Text Effects */}
         <section className={sectionClass}>
-          <h3 className={headingClass}>Shadow</h3>
+          <h3 className={headingClass}>Text Effects</h3>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
@@ -180,6 +183,15 @@ export default function EditPanel() {
               className="accent-violet-500"
             />
             Text Shadow
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={slide.style.textStrokeEnabled}
+              onChange={(e) => updateStyle({ textStrokeEnabled: e.target.checked })}
+              className="accent-violet-500"
+            />
+            Text Border
           </label>
         </section>
 
